@@ -349,6 +349,7 @@ class OpenCabinetEnvBase(BaseEnv):
                 joints.append(joint)
         return len(links)
 
+
 class OpenCabinetDoorEnv(OpenCabinetEnvBase):
     def __init__(self, *args, split='train', **kwargs):
         super().__init__(
@@ -411,9 +412,19 @@ class OpenCabinetDrawerEnv(OpenCabinetEnvBase):
                 agent=dense_obs,
                 pointcloud=raw_pcd
             )
+        elif self.obs_mode == 'custom':
+            custom_obs = np.zeros(len(dense_obs)+ 100*3)
+            o3d = self.get_transposed_o3d()
+            custom_obs[:len(dense_obs)] = dense_obs
+            custom_obs[len(dense_obs):] = o3d.flatten()
 
+            return custom_obs
         return dense_obs
-
+    def get_transposed_o3d(self):
+        current_handle = apply_pose_to_points(self.o3d_info[self.target_link_name][-1],
+                                              self.target_link.get_pose())  # [200, 3]
+        #(current_handle.shape)
+        return current_handle                               
     def get_aabb_for_min_x(self, link): 
         all_mins, all_maxs = self.get_all_minmax(link)
         sorted_index = sorted(range(len(all_maxs)),key=lambda i: all_maxs[i][0])
@@ -541,7 +552,8 @@ class OpenCabinetDrawerMagicEnv(OpenCabinetEnvBase):
     #     dense_obs[10:11] = self.cabinet.get_qpos()[self.target_index_in_active_joints]
     #     return dense_obs
 
-    # def get_custom_observation(self):
+
+
     def get_obs(self, my_pcd_flag=False, use_camera=True, **kwargs):
         dense_obs = np.zeros(5+5+6) #qpos[5] qvel[5] bbox[6]
         robot = self.agent.robot
@@ -571,7 +583,12 @@ class OpenCabinetDrawerMagicEnv(OpenCabinetEnvBase):
                 agent=dense_obs,
                 pointcloud=raw_pcd
             )
-
+        elif self.obs_mode == 'custom':
+            custom_obs = np.zeros(len(dense_obs)+ 100*3)
+            o3d = self.get_transposed_o3d()
+            custom_obs[:len(dense_obs)] = dense_obs
+            custom_obs[len(dense_obs):] = o3d.flatten()
+            return custom_obs
         return dense_obs
 
         # agent_state = self.agent.get_state()
@@ -691,4 +708,5 @@ class OpenCabinetDrawerMagicEnv(OpenCabinetEnvBase):
     def get_transposed_o3d(self):
         current_handle = apply_pose_to_points(self.o3d_info[self.target_link_name][-1],
                                               self.target_link.get_pose())  # [200, 3]
+        #print(current_handle.shape)
         return current_handle                               
