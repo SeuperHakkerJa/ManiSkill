@@ -6,10 +6,9 @@ render:
   _override:
     cameras:
     - name: "world"
-      position: [-1.5, 0, 1.5]
-      rotation: [0.9238795, 0, 0.3826834, 0]
-      _include: "components/default_camera.yml"
-    - _include: "components/cameras_on_robot.yml"
+      position: [-0.9, 1, 0.8]
+      rotation: [0.908009, 0.0445405, 0.10001, -0.404393]
+      _include: "components/jacob_camera.yml"
 layout:
   surface_materials:
     - name: "object_material"
