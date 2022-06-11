@@ -378,7 +378,7 @@ class OpenCabinetDrawerEnv(OpenCabinetEnvBase):
     def num_target_links(self):
         return super().num_target_links('prismatic')
 
-    def get_obs(self, **kwargs):
+    def get_obs(self, my_pcd_flag=False,use_camera=True, **kwargs):
         # warning, overwrite original get_obs
         s = 13 + 13 + 7 + 6  # qpos [13] qvel [13] hand(xyz,q) [7] bbox [6]
         dense_obs = np.zeros(s)
@@ -393,6 +393,25 @@ class OpenCabinetDrawerEnv(OpenCabinetEnvBase):
         dense_obs[29:33] = hand_q
         dense_obs[33:36] = mins
         dense_obs[36:39] = maxs
+        if self.obs_mode == 'pointcloud':
+            super_obs =  super().get_obs()
+            raw_pcd = super_obs['pointcloud']
+            mask0=raw_pcd['seg'][:, 0]
+            handle_idx = np.where(mask0 != False)
+
+            processed_pcd = []
+            for i in range(60): ## use 60 points for handle
+
+                idx = i % len(handle_idx[0])
+                point = raw_pcd['xyz'][handle_idx[0][idx]]
+                processed_pcd.append(point)
+            processed_pcd = np.array(processed_pcd)
+            raw_pcd['xyz']=processed_pcd
+            return dict(
+                agent=dense_obs,
+                pointcloud=raw_pcd
+            )
+
         return dense_obs
 
     def get_aabb_for_min_x(self, link): 
@@ -523,7 +542,7 @@ class OpenCabinetDrawerMagicEnv(OpenCabinetEnvBase):
     #     return dense_obs
 
     # def get_custom_observation(self):
-    def get_obs(self, **kwargs):
+    def get_obs(self, my_pcd_flag=False, use_camera=True, **kwargs):
         dense_obs = np.zeros(5+5+6) #qpos[5] qvel[5] bbox[6]
         robot = self.agent.robot
         qpos = robot.get_qpos()
@@ -533,6 +552,26 @@ class OpenCabinetDrawerMagicEnv(OpenCabinetEnvBase):
         dense_obs[5:10] = qvel
         dense_obs[10:13] = mins
         dense_obs[13:16] = maxs
+
+        if self.obs_mode == 'pointcloud':
+            super_obs =  super().get_obs()
+            raw_pcd = super_obs['pointcloud']
+            mask0=raw_pcd['seg'][:, 0]
+            handle_idx = np.where(mask0 != False)
+
+            processed_pcd = []
+            for i in range(60): ## use 60 points for handle
+
+                idx = i % len(handle_idx[0])
+                point = raw_pcd['xyz'][handle_idx[0][idx]]
+                processed_pcd.append(point)
+            processed_pcd = np.array(processed_pcd)
+            raw_pcd['xyz']=processed_pcd
+            return dict(
+                agent=dense_obs,
+                pointcloud=raw_pcd
+            )
+
         return dense_obs
 
         # agent_state = self.agent.get_state()
@@ -648,3 +687,8 @@ class OpenCabinetDrawerMagicEnv(OpenCabinetEnvBase):
         maxs = all_maxs[max_x_index]
 
         return mins, maxs
+    
+    def get_transposed_o3d(self):
+        current_handle = apply_pose_to_points(self.o3d_info[self.target_link_name][-1],
+                                              self.target_link.get_pose())  # [200, 3]
+        return current_handle                               
