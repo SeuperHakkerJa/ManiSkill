@@ -378,7 +378,7 @@ class OpenCabinetDrawerEnv(OpenCabinetEnvBase):
     def num_target_links(self):
         return super().num_target_links('prismatic')
 
-    def get_obs(self, my_pcd_flag=False,use_camera=True **kwargs):
+    def get_obs(self, my_pcd_flag=False,use_camera=True, **kwargs):
         # warning, overwrite original get_obs
         s = 13 + 13 + 7 + 6  # qpos [13] qvel [13] hand(xyz,q) [7] bbox [6]
         dense_obs = np.zeros(s)
