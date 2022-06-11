@@ -393,13 +393,25 @@ class OpenCabinetDrawerEnv(OpenCabinetEnvBase):
         dense_obs[29:33] = hand_q
         dense_obs[33:36] = mins
         dense_obs[36:39] = maxs
-        if my_pcd_flag:
-            self.obs_mode = 'pointcloud'
+        if self.obs_mode == 'pointcloud':
             super_obs =  super().get_obs()
+            raw_pcd = super_obs['pointcloud']
+            mask0=raw_pcd['seg'][:, 0]
+            handle_idx = np.where(mask0 != False)
+
+            processed_pcd = []
+            for i in range(60): ## use 60 points for handle
+
+                idx = i % len(handle_idx[0])
+                point = raw_pcd['xyz'][handle_idx[0][idx]]
+                processed_pcd.append(point)
+            processed_pcd = np.array(processed_pcd)
+            raw_pcd['xyz']=processed_pcd
             return dict(
-                dense_obs=dense_obs,
-                pointcloud=super_obs['pointcloud']
+                agent=dense_obs,
+                pointcloud=raw_pcd
             )
+
         return dense_obs
 
     def get_aabb_for_min_x(self, link): 
@@ -448,12 +460,23 @@ class OpenCabinetDrawerMagicEnv(OpenCabinetEnvBase):
         dense_obs[10:13] = mins
         dense_obs[13:16] = maxs
 
-        if my_pcd_flag:
-            self.obs_mode = 'pointcloud'
+        if self.obs_mode == 'pointcloud':
             super_obs =  super().get_obs()
+            raw_pcd = super_obs['pointcloud']
+            mask0=raw_pcd['seg'][:, 0]
+            handle_idx = np.where(mask0 != False)
+
+            processed_pcd = []
+            for i in range(60): ## use 60 points for handle
+
+                idx = i % len(handle_idx[0])
+                point = raw_pcd['xyz'][handle_idx[0][idx]]
+                processed_pcd.append(point)
+            processed_pcd = np.array(processed_pcd)
+            raw_pcd['xyz']=processed_pcd
             return dict(
-                dense_obs=dense_obs,
-                pointcloud=super_obs['pointcloud']
+                agent=dense_obs,
+                pointcloud=raw_pcd
             )
 
         return dense_obs
