@@ -98,6 +98,10 @@ class BaseEnv(Env):
 
         self._max_episode_steps = max_episode_steps
 
+    @property
+    def scene(self):
+        return self._scene
+
     def set_env_mode(self, obs_mode=None, reward_type=None):
         if obs_mode is not None:
             assert obs_mode in ['pointcloud', 'state', 'rgbd', 'custom']
