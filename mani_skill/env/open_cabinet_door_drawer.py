@@ -378,7 +378,7 @@ class OpenCabinetDrawerEnv(OpenCabinetEnvBase):
     def num_target_links(self):
         return super().num_target_links('prismatic')
 
-    def get_obs(self, **kwargs):
+    def get_obs(self, my_pcd_flag=False, **kwargs):
         # warning, overwrite original get_obs
         s = 13 + 13 + 7 + 6  # qpos [13] qvel [13] hand(xyz,q) [7] bbox [6]
         dense_obs = np.zeros(s)
@@ -393,6 +393,9 @@ class OpenCabinetDrawerEnv(OpenCabinetEnvBase):
         dense_obs[29:33] = hand_q
         dense_obs[33:36] = mins
         dense_obs[36:39] = maxs
+        if my_pcd_flag:
+            self.obs_mode = 'pointcloud'
+            return super().get_obs()
         return dense_obs
 
     def get_aabb_for_min_x(self, link): 
@@ -430,7 +433,7 @@ class OpenCabinetDrawerMagicEnv(OpenCabinetEnvBase):
     #     return dense_obs
 
     # def get_custom_observation(self):
-    def get_obs(self, **kwargs):
+    def get_obs(self, my_pcd_flag=False, **kwargs):
         dense_obs = np.zeros(5+5+6) #qpos[5] qvel[5] bbox[6]
         robot = self.agent.robot
         qpos = robot.get_qpos()
@@ -440,6 +443,11 @@ class OpenCabinetDrawerMagicEnv(OpenCabinetEnvBase):
         dense_obs[5:10] = qvel
         dense_obs[10:13] = mins
         dense_obs[13:16] = maxs
+
+        if my_pcd_flag:
+            self.obs_mode = 'pointcloud'
+            return super().get_obs()
+
         return dense_obs
 
         # agent_state = self.agent.get_state()

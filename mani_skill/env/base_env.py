@@ -654,7 +654,7 @@ class BaseEnv(Env):
         elif self.obs_mode == 'pointcloud':
             obs = {
                 'agent': self.agent.get_state(with_controller_state=False),
-                'pointcloud': self.render(mode='pointcloud', camera_names=['robot'], seg=seg, **kwargs),
+                'pointcloud': self.render(mode='pointcloud', camera_names=['world'], seg=seg, **kwargs),
             }
         # post processing
         if self.obs_mode == 'pointcloud' or self.obs_mode == 'rgbd':
