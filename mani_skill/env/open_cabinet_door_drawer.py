@@ -56,6 +56,28 @@ class OpenCabinetEnvBase(BaseEnv):
 
         self.target_qpos = lmin + (lmax - lmin) * self.custom['open_extent']
         self.pose_at_joint_zero = self.target_link.get_pose()
+        self.full_open_qpos = self.target_qpos
+        self.task = 'open'
+        p = np.random.RandomState(seed=self.level + 99999).rand()
+        if p < 0.5:
+            self.task = 'close'
+            self.target_qpos = lmax - (+ (lmax - lmin) * self.custom['open_extent'])
+            qpos = []
+            
+            for i, joint in enumerate(self.cabinet.get_active_joints()):
+                [[lmin, lmax]] = joint.get_limits()
+                if lmin == -np.inf or lmax == np.inf:
+                    raise Exception('This object has an inf limit joint.')
+                if joint.name == self.target_joint.name:
+                    qpos.append(lmax)
+                else:
+                    qpos.append(lmin)
+
+            
+            self.cabinet.set_qpos(np.array(qpos))
+
+        
+        # print("#### TASK", self.task, self.target_qpos, self.fixed_target_link_id)
 
         return self.get_obs()
 
@@ -446,9 +468,10 @@ from mani_skill.utils.config_parser import (
 )
 
 class OpenCabinetDrawerEnv_CabinetSelection(OpenCabinetDrawerEnv):
-    def reset(self, level=None, cabinet_id=None, target_link_id=None, *args, **kwargs):
+    def reset(self, level=None, cabinet_id=None, target_link_id=None, task='open', *args, **kwargs):
         if level is None:
             level = self._main_rng.randint(2 ** 32)
+        self.task = task
         self.level = level
         self._level_rng = np.random.RandomState(seed=self.level)
 
