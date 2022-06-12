@@ -5,7 +5,7 @@ import time
 env = gym.make('OpenCabinetDrawer-v0')
 # full environment list can be found in available_environments.txt
 
-env.set_env_mode(obs_mode='pointcloud', reward_type='sparse')
+env.set_env_mode(obs_mode='custom', reward_type='sparse')
 # obs_mode can be 'state', 'pointcloud' or 'rgbd'
 # reward_type can be 'sparse' or 'dense'
 print(env.observation_space) # this shows the structure of the observation, openai gym's format

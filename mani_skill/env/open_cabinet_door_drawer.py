@@ -1,3 +1,4 @@
+from curses import raw
 import pdb
 import numpy as np
 
@@ -76,7 +77,8 @@ class OpenCabinetEnvBase(BaseEnv):
             
             self.cabinet.set_qpos(np.array(qpos))
 
-        
+        self.last_good_pcd_ids = None
+        self.bbox_flag=False
         # print("#### TASK", self.task, self.target_qpos, self.fixed_target_link_id)
 
         return self.get_obs()
@@ -417,44 +419,78 @@ class OpenCabinetDrawerEnv(OpenCabinetEnvBase):
         return super().num_target_links('prismatic')
 
     def get_obs(self, my_pcd_flag=False,use_camera=True, **kwargs):
-        # warning, overwrite original get_obs
-        s = 13 + 13 + 7 + 6  # qpos [13] qvel [13] hand(xyz,q) [7] bbox [6]
+        # warning, overwrite originalget_obs
+
+        s = 13 + 13 + 7
         dense_obs = np.zeros(s)
         qpos = self.agent.robot.get_qpos()
         qvel = self.agent.robot.get_qvel()
         hand = self.agent.hand
         hand_p, hand_q = hand.pose.p, hand.pose.q
-        mins, maxs = self.get_aabb_for_min_x(self.target_link)
         dense_obs[:13] = qpos
         dense_obs[13:26] = qvel
         dense_obs[26:29] = hand_p
         dense_obs[29:33] = hand_q
-        dense_obs[33:36] = mins
-        dense_obs[36:39] = maxs
         if self.obs_mode == 'pointcloud':
-            super_obs =  super().get_obs()
+            super_obs = super().get_obs()
             raw_pcd = super_obs['pointcloud']
-            mask0=raw_pcd['seg'][:, 0]
-            handle_idx = np.where(mask0 != False)
-
+            mask0 = raw_pcd['seg'][:,0]
+            handle_idx = np.where(mask0 != False)[0]
+            if len(handle_idx) > 1:
+                ## good pcd 
+                self.last_good_pcd_ids = handle_idx
+            else: 
+                if self.last_good_pcd_ids is None:
+                    raise Exception("this should not happened, pcd starts None")
+                else: 
+                    ## handle occluded, use last good
+                    handle_idx = self.last_good_pcd_ids
             processed_pcd = []
-            for i in range(60): ## use 60 points for handle
-
-                idx = i % len(handle_idx[0])
-                point = raw_pcd['xyz'][handle_idx[0][idx]]
+            for i in range(60):
+                idx = i % len(handle_idx)
+                point = raw_pcd['xyz'][handle_idx[idx]]
                 processed_pcd.append(point)
-            processed_pcd = np.array(processed_pcd)
-            raw_pcd['xyz']=processed_pcd
-            return dict(
-                agent=dense_obs,
-                pointcloud=raw_pcd
-            )
-        elif self.obs_mode == 'custom':
-            custom_obs = np.zeros(len(dense_obs)+ 100*3)
-            o3d = self.get_transposed_o3d()
-            custom_obs[:len(dense_obs)] = dense_obs
-            custom_obs[len(dense_obs):] = o3d.flatten()
+            raw_pcd['xyz'] = np.array(processed_pcd)
+            T = self.cameras[0].get_model_matrix()
+            R=T[:3, :3]
+            t=T[:3, 3]  
+            raw_pcd['xyz']= raw_pcd['xyz'] @ R.transpose() + t
 
+            return dict (
+                agent=dense_obs,
+                pointcloud=raw_pcd,
+            )
+
+        elif self.obs_mode == 'custom':
+            custom_obs = np.zeros(s + 6)
+            custom_obs[:-6] = dense_obs
+            self.obs_mode = 'pointcloud'
+            super_obs = super().get_obs()
+            raw_pcd = super_obs['pointcloud']
+            mask0 = raw_pcd['seg'][:,0]
+            handle_idx = np.where(mask0 != False)[0]
+            if len(handle_idx) > 1:
+                ## good pcd 
+                self.last_good_pcd_ids = handle_idx
+            else: 
+                if self.last_good_pcd_ids is None:
+                    raise Exception("this should not happened, pcd starts None")
+                else: 
+                    ## handle occluded, use last good
+                    handle_idx = self.last_good_pcd_ids
+
+            mins = np.ones(3) * np.inf
+            maxs = -mins
+            T = self.cameras[0].get_model_matrix()
+            R=T[:3, :3]
+            t=T[:3, 3]  
+            for idx in handle_idx:
+                point = raw_pcd['xyz'][idx] @ R.transpose() + t
+                mins = np.minimum(mins, point)
+                maxs = np.maximum(maxs, point)
+            custom_obs[-6:-3] = mins
+            custom_obs[-3:] = maxs
+            self.obs_mode = 'custom'
             return custom_obs
         return dense_obs
     def get_transposed_o3d(self):
@@ -615,39 +651,76 @@ class OpenCabinetDrawerMagicEnv(OpenCabinetEnvBase):
 
 
     def get_obs(self, my_pcd_flag=False, use_camera=True, **kwargs):
-        dense_obs = np.zeros(5+5+6) #qpos[5] qvel[5] bbox[6]
+        s = 5+5
+        dense_obs = np.zeros(s) #qpos[5] qvel[5] bbox[6]
         robot = self.agent.robot
         qpos = robot.get_qpos()
         qvel = robot.get_qvel()
         mins, maxs = self.get_aabb_for_min_x(self.target_link)
         dense_obs[:5] = qpos
         dense_obs[5:10] = qvel
-        dense_obs[10:13] = mins
-        dense_obs[13:16] = maxs
+
 
         if self.obs_mode == 'pointcloud':
-            super_obs =  super().get_obs()
+            super_obs = super().get_obs()
             raw_pcd = super_obs['pointcloud']
-            mask0=raw_pcd['seg'][:, 0]
-            handle_idx = np.where(mask0 != False)
-
+            mask0 = raw_pcd['seg'][:,0]
+            handle_idx = np.where(mask0 != False)[0]
+            if len(handle_idx) > 1:
+                ## good pcd 
+                self.last_good_pcd_ids = handle_idx
+            else: 
+                if self.last_good_pcd_ids is None:
+                    raise Exception("this should not happened, pcd starts None")
+                else: 
+                    ## handle occluded, use last good
+                    handle_idx = self.last_good_pcd_ids
             processed_pcd = []
-            for i in range(60): ## use 60 points for handle
-
-                idx = i % len(handle_idx[0])
-                point = raw_pcd['xyz'][handle_idx[0][idx]]
+            for i in range(60):
+                idx = i % len(handle_idx)
+                point = raw_pcd['xyz'][handle_idx[idx]]
                 processed_pcd.append(point)
-            processed_pcd = np.array(processed_pcd)
-            raw_pcd['xyz']=processed_pcd
-            return dict(
+            raw_pcd['xyz'] = np.array(processed_pcd)
+            T = self.cameras[0].get_model_matrix()
+            R=T[:3, :3]
+            t=T[:3, 3]  
+            raw_pcd['xyz']= raw_pcd['xyz'] @ R.transpose() + t
+
+            return dict (
                 agent=dense_obs,
-                pointcloud=raw_pcd
+                pointcloud=raw_pcd,
             )
+
         elif self.obs_mode == 'custom':
-            custom_obs = np.zeros(len(dense_obs)+ 100*3)
-            o3d = self.get_transposed_o3d()
-            custom_obs[:len(dense_obs)] = dense_obs
-            custom_obs[len(dense_obs):] = o3d.flatten()
+            custom_obs = np.zeros(s + 6)
+            custom_obs[:-6] = dense_obs
+            self.obs_mode = 'pointcloud'
+            super_obs = super().get_obs()
+            raw_pcd = super_obs['pointcloud']
+            mask0 = raw_pcd['seg'][:,0]
+            handle_idx = np.where(mask0 != False)[0]
+            if len(handle_idx) > 1:
+                ## good pcd 
+                self.last_good_pcd_ids = handle_idx
+            else: 
+                if self.last_good_pcd_ids is None:
+                    raise Exception("this should not happened, pcd starts None")
+                else: 
+                    ## handle occluded, use last good
+                    handle_idx = self.last_good_pcd_ids
+
+            mins = np.ones(3) * np.inf
+            maxs = -mins
+            T = self.cameras[0].get_model_matrix()
+            R=T[:3, :3]
+            t=T[:3, 3]  
+            for idx in handle_idx:
+                point = raw_pcd['xyz'][idx] @ R.transpose() + t
+                mins = np.minimum(mins, point)
+                maxs = np.maximum(maxs, point)
+            custom_obs[-6:-3] = mins
+            custom_obs[-3:] = maxs
+            self.obs_mode = 'custom'
             return custom_obs
         return dense_obs
 
