@@ -314,8 +314,10 @@ class OpenCabinetEnvBase(BaseEnv):
 
         vel_reward = 0
         dist_reward = 0
-
-        if other_info['ee_close_to_handle']:
+        task_success = False
+        if self.task == 'open' and flag_dict['open_enough'] and flag_dict['cabinet_static']: task_success = True
+        elif self.task == 'close' and flag_dict['closed_enough'] and flag_dict['cabinet_static']: task_success = True
+        if other_info['ee_close_to_handle'] or task_success:
             stage_reward += 0.5
             vel_reward = normalize_and_clip_in_interval(cabinet_vel, -0.1, 0.5) * vel_coefficient  # Push vel to positive
             dist_reward = normalize_and_clip_in_interval(self.cabinet.get_qpos()[self.target_index_in_active_joints],
@@ -327,12 +329,14 @@ class OpenCabinetEnvBase(BaseEnv):
                     reward = reward - vel_reward + gripper_vel_rew
                     if flag_dict['cabinet_static']:
                         stage_reward += 1
+                        reward = reward - rew_ee_handle - rew_ee_mid_handle
             elif self.task == 'close':
                 if flag_dict['closed_enough']:
                     stage_reward += (vel_coefficient + 2)
                     reward = reward - vel_reward + gripper_vel_rew
                     if flag_dict['cabinet_static']:
                         stage_reward += 1
+                        reward = reward - rew_ee_handle - rew_ee_mid_handle
             else:
                 raise NotImplementedError(f"No dense reward for this task: {self.task}")
         info_dict = {
