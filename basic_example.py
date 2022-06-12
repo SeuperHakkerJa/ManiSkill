@@ -1,16 +1,17 @@
 import gym
 import mani_skill.env
+import time
 
-env = gym.make('OpenCabinetDoor-v0')
+env = gym.make('OpenCabinetDrawer-v0')
 # full environment list can be found in available_environments.txt
 
-env.set_env_mode(obs_mode='state', reward_type='sparse')
+env.set_env_mode(obs_mode='pointcloud', reward_type='sparse')
 # obs_mode can be 'state', 'pointcloud' or 'rgbd'
 # reward_type can be 'sparse' or 'dense'
 print(env.observation_space) # this shows the structure of the observation, openai gym's format
 print(env.action_space) # this shows the action space, openai gym's format
-
-for level_idx in range(0, 5): # level_idx is a random seed
+tic = time.time()
+for level_idx in range(0, 3): # level_idx is a random seed
     obs = env.reset(level=level_idx)
     print('#### Level {:d}'.format(level_idx))
     for i_step in range(100000):
@@ -21,3 +22,4 @@ for level_idx in range(0, 5): # level_idx is a random seed
         if done:
             break
 env.close()
+print(600 / (time.time() - tic))

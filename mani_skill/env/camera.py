@@ -1,11 +1,19 @@
 import numpy as np, os
 
+# def get_texture_by_dltensor(cam, tag, dtype='float'):
+#     if os.environ.get('NO_CUPY', 0) == 1:
+#         from cupy import fromDlpack, asnumpy
+#         dlpack = cam.get_dl_tensor(tag)
+#         return asnumpy(fromDlpack(dlpack))
+#     else:
+#         return getattr(cam, f'get_{dtype}_texture')(tag)
+
 def get_texture_by_dltensor(cam, tag, dtype='float'):
-    if os.environ.get('NO_CUPY', 0) == 1:
+    try:
         from cupy import fromDlpack, asnumpy
         dlpack = cam.get_dl_tensor(tag)
         return asnumpy(fromDlpack(dlpack))
-    else:
+    except:
         return getattr(cam, f'get_{dtype}_texture')(tag)
 
 def read_images_from_camera(cam, depth=False, seg_indices=None):
