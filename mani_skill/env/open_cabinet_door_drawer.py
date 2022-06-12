@@ -259,10 +259,16 @@ class OpenCabinetEnvBase(BaseEnv):
         return other_info
 
     def compute_eval_flag_dict(self):
-        flag_dict = {
-            'cabinet_static': self.check_actor_static(self.target_link, max_v=0.1, max_ang_v=1),
-            'open_enough': self.cabinet.get_qpos()[self.target_index_in_active_joints] >= self.target_qpos
-        }
+        if self.task == 'open':
+            flag_dict = {
+                'cabinet_static': self.check_actor_static(self.target_link, max_v=0.1, max_ang_v=1),
+                'open_enough': self.cabinet.get_qpos()[self.target_index_in_active_joints] >= self.target_qpos
+            }
+        elif self.task == 'close':
+            flag_dict = {
+                'cabinet_static': self.check_actor_static(self.target_link, max_v=0.1, max_ang_v=1),
+                'closed_enough': self.cabinet.get_qpos()[self.target_index_in_active_joints] <= self.target_qpos
+            }
         flag_dict['success'] = all(flag_dict.values())
         return flag_dict
 
@@ -315,11 +321,20 @@ class OpenCabinetEnvBase(BaseEnv):
             dist_reward = normalize_and_clip_in_interval(self.cabinet.get_qpos()[self.target_index_in_active_joints],
                                                          0, self.target_qpos) * dist_coefficient
             reward += dist_reward + vel_reward
-            if flag_dict['open_enough']:
-                stage_reward += (vel_coefficient + 2)
-                reward = reward - vel_reward + gripper_vel_rew
-                if flag_dict['cabinet_static']:
-                    stage_reward += 1
+            if self.task == 'open':
+                if flag_dict['open_enough']:
+                    stage_reward += (vel_coefficient + 2)
+                    reward = reward - vel_reward + gripper_vel_rew
+                    if flag_dict['cabinet_static']:
+                        stage_reward += 1
+            elif self.task == 'close':
+                if flag_dict['closed_enough']:
+                    stage_reward += (vel_coefficient + 2)
+                    reward = reward - vel_reward + gripper_vel_rew
+                    if flag_dict['cabinet_static']:
+                        stage_reward += 1
+            else:
+                raise NotImplementedError(f"No dense reward for this task: {self.task}")
         info_dict = {
             'dist_ee_to_handle': dist_ee_to_handle,
             'angle1': angle1,
