@@ -565,6 +565,28 @@ class OpenCabinetDrawerEnv_CabinetSelection(OpenCabinetDrawerEnv):
         self.target_qpos = lmin + (lmax - lmin) * self.custom['open_extent']
         self.pose_at_joint_zero = self.target_link.get_pose()
 
+        #copied over from base open cabinet door drawer env
+        self.full_open_qpos = self.target_qpos
+        p = np.random.RandomState(seed=self.level + 99999).rand()
+        if self.task == 'close':
+            self.target_qpos = lmax - (+ (lmax - lmin) * self.custom['open_extent'])
+            qpos = []
+            for i, joint in enumerate(self.cabinet.get_active_joints()):
+                [[lmin, lmax]] = joint.get_limits()
+                if lmin == -np.inf or lmax == np.inf:
+                    raise Exception('This object has an inf limit joint.')
+                if joint.name == self.target_joint.name:
+                    qpos.append(lmax)
+                else:
+                    qpos.append(lmin)
+
+            
+            self.cabinet.set_qpos(np.array(qpos))
+        elif self.task == 'open':
+            pass
+        else:
+            raise ValueError(f"task {task} is not valid")
+
         return self.get_obs()
 
 
