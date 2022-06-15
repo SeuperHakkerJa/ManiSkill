@@ -97,6 +97,7 @@ class BaseEnv(Env):
         self.time_per_env_step = frame_skip / self.agent.control_frequency
 
         self._max_episode_steps = max_episode_steps
+        self._prev_actor_pose = dict()
 
     @property
     def scene(self):
@@ -159,6 +160,7 @@ class BaseEnv(Env):
         self.level_config, self.level_variant_config = process_variants(
             config, self._level_rng, self.variant_config
         )
+        self._prev_actor_pose = dict()
 
         # load everything
         self._setup_renderer()
@@ -502,7 +504,6 @@ class BaseEnv(Env):
             art.set_root_velocity(state[7:10])
             art.set_root_angular_velocity(state[10:13])
             state = state[13:]
-            # import pdb; pdb.set_trace()
             art.set_qpos(state[0:art.dof])
             art.set_qvel(state[max_dof:max_dof+art.dof])
             state = state[2*max_dof:]
@@ -584,16 +585,33 @@ class BaseEnv(Env):
     def enable_running_to_time_limit(self):
         self.running_to_time_limit = True
 
-    def check_actor_static(self, actor, max_v=None, max_ang_v=None):
+    def check_actor_static(self, actor: sapien.Link, max_v=None, max_ang_v=None):
         if self.step_in_ep <= 1:
             flag_v = (max_v is None) or (np.linalg.norm(actor.get_velocity()) <= max_v)
             flag_ang_v = (max_ang_v is None) or (np.linalg.norm(actor.get_angular_velocity()) <= max_ang_v)
+            
         else:
+
+            # branches here to allow storing multiple actor poses and wipe them all out if new step is entered
+            if self._prev_actor_pose["_env_step"] == self.step_in_ep:
+                if (actor.get_name() + "_static_check") in self._prev_actor_pose:
+                    return self._prev_actor_pose[actor.get_name() + "_static_check"]
+            else:
+                del_keys = []
+                for k in self._prev_actor_pose:
+                    if "_static_check" in k:
+                        del_keys.append(k)
+                for k in del_keys:
+                    del self._prev_actor_pose[k]
             pose = actor.get_pose()
+            prev_pose = self._prev_actor_pose[actor.get_name()]
+            
             t = self.time_per_env_step
-            flag_v = (max_v is None) or ( np.linalg.norm( pose.p - self._prev_actor_pose.p ) <= max_v * t)
-            flag_ang_v = (max_ang_v is None) or (angle_distance(self._prev_actor_pose, pose) <= max_ang_v * t)
-        self._prev_actor_pose = actor.get_pose()
+            flag_v = (max_v is None) or ( np.linalg.norm( pose.p - prev_pose.p ) <= max_v * t)
+            flag_ang_v = (max_ang_v is None) or (angle_distance(prev_pose, pose) <= max_ang_v * t)
+        self._prev_actor_pose[actor.get_name()] = actor.get_pose()
+        self._prev_actor_pose[actor.get_name() + "_static_check"] = flag_v and flag_ang_v
+        self._prev_actor_pose["_env_step"] = self.step_in_ep
         return flag_v and flag_ang_v
     
     def render(self, mode='color_image', depth=False, seg=None, camera_names=None):
