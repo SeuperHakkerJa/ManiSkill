@@ -524,13 +524,13 @@ from mani_skill.utils.config_parser import (
 )
 
 class OpenCabinetDrawerEnv_CabinetSelection(OpenCabinetDrawerEnv):
-    def __init__(self, yaml_file_path=f'../assets/config_files/open_cabinet_drawer.yml', mode='1', *args, **kwargs):
+    def __init__(self, yaml_file_path=f'../assets/config_files/open_cabinet_drawer.yml', mode=1, *args, **kwargs):
         self.mode = mode
         super().__init__(yaml_file_path, *args, **kwargs)
         
     def compute_eval_flag_dict(self):
         if self.task == 'open':
-            if self.mode == '1':
+            if self.mode == 1:
                 flag_dict = {
                     'cabinet_static': self.check_actor_static(self.target_link, max_v=0.1, max_ang_v=1),
                     'open_enough': self.cabinet.get_qpos()[self.target_index_in_active_joints] >= self.target_qpos
@@ -549,8 +549,8 @@ class OpenCabinetDrawerEnv_CabinetSelection(OpenCabinetDrawerEnv):
                     ),
                     'open_enoughs': (open_enough)
                 }
-                flag_dict['cabinet_static'] = np.all(flag_dict['cabinet_statics'])
-                flag_dict['open_enough'] = np.all(flag_dict['open_enoughs'])
+                flag_dict['cabinet_static'] = np.array(flag_dict['cabinet_statics']).sum() >= self.mode
+                flag_dict['open_enough'] = np.array(flag_dict['open_enoughs']).sum() >= self.mode
         elif self.task == 'close':
             flag_dict = {
                 'cabinet_static': self.check_actor_static(self.target_link, max_v=0.1, max_ang_v=1),
@@ -560,7 +560,6 @@ class OpenCabinetDrawerEnv_CabinetSelection(OpenCabinetDrawerEnv):
         return flag_dict
     def select_target(self, target_index):
         # load next target somehow
-        print(f"### selected target {target_index}")
         self.target_index = target_index 
         self.target_link = self.links[self.target_index]
         self.target_link_name = self.target_link.get_name()
@@ -692,7 +691,6 @@ class OpenCabinetDrawerMagicEnv(OpenCabinetEnvBase):
         )
         self.magic_drive = None
         self.connected=False
-    
     # def reset(self, *args, **kwargs):
     #     self.magic_drive = None
     #     self.connected = False
