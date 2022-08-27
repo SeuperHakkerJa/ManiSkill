@@ -479,7 +479,7 @@ class BaseEnv(Env):
 
         actors_state = [get_actor_state(actor) for actor in actors]
         arts_state = [get_pad_articulation_state(art, max_dof) for art, max_dof in arts]
-
+        
         return np.concatenate( actors_state + arts_state + [
             self.get_additional_task_info(obs_mode='state'),
             self.agent.get_state(with_controller_state=with_controller_state),

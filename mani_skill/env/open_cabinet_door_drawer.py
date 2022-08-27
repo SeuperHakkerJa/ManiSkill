@@ -435,6 +435,10 @@ class OpenCabinetDrawerEnv(OpenCabinetEnvBase):
         dense_obs[13:26] = qvel
         dense_obs[26:29] = hand_p
         dense_obs[29:33] = hand_q
+        if self.obs_mode == 'state':
+            s += 6
+            mins, maxs = self.get_aabb_for_min_x(self.target_link)
+            dense_obs = np.concatenate([dense_obs, mins, maxs])
         if self.obs_mode == 'pointcloud':
             super_obs = super().get_obs()
             raw_pcd = super_obs['pointcloud']
